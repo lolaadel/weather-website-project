@@ -10,7 +10,7 @@ var humidity = document.getElementById("humidity");
 var wind = document.getElementById("wind");
 var windDirection = document.getElementById("wind-direction");
 
-var weatherData;
+var searchTimer;
 
 // next Data
 var nextDay = document.getElementsByClassName("next-day-name");
@@ -20,81 +20,89 @@ var nextConditionImg = document.getElementsByClassName("next-condition-img");
 var nextConditionText = document.getElementsByClassName("next-condition-text");
 // search input
 var searchInput = document.getElementById("search");
+var loading = document.getElementById("loading");
+var errorMessage = document.getElementById("error-message");
+var searchButton = document.getElementById("submit");
 
 searchInput.addEventListener("input", function () {
-    startApp(this.value)
-})
+    clearTimeout(searchTimer);
+    var city = this.value.trim();
+    searchTimer = setTimeout(() => {
+        if (!city) {
+            return;
+        }
+        startApp(city);
+    }, 500);
+});
+searchButton.addEventListener("click", function () {
+    var city = searchInput.value.trim();
 
-
-
+    if (city) {
+        clearTimeout(searchTimer);
+        startApp(city);
+    }
+});
 // weather
 async function getWeather(city) {
-    var weatherResponse = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=93ce9a9b651646d4a3e72551260202&q=${city}&days=7` , {
-        method:"post"
-    })
-    var weatherData = await weatherResponse.json()
-    console.log(weatherData);
-    console.log(weatherResponse);
-    return weatherData;
-
-}
-async function startApp(city = "Cairo") {
-
-    var weatherData = await getWeather(city);
-
-    console.log(weatherData);
-    if (!weatherData.error) {
-        disPlayTodayDate(weatherData)
-        disPlayNextDate(weatherData)
-    }else{
-        window.alert("message:No matching location found.")
-        console.log("message:No matching location found.");   
+    try {
+        var weatherResponse = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=93ce9a9b651646d4a3e72551260202&q=${encodeURIComponent(city)}&days=3`);
+        if (!weatherResponse.ok) {
+            throw new Error("Unable to fetch weather data");
+        }
+        var weatherData = await weatherResponse.json();
+        return weatherData;
+    } catch (error) {
+        console.error("Weather API Error:", error);
+        return null;
     }
+}
 
+async function startApp(city = "Cairo") {
+    errorMessage.classList.add("d-none");
+    loading.classList.remove("d-none");
+    try {
+        var weatherData = await getWeather(city);
 
+        if (weatherData && !weatherData.error) {
+            disPlayTodayDate(weatherData);
+            disPlayNextDate(weatherData);
+        } else {
+            errorMessage.classList.remove("d-none");
+        }
+    } finally {
+        loading.classList.add("d-none");
+    }
 }
 
 startApp()
 function disPlayTodayDate(date) {
     var todayDate = new Date();
-    console.log(todayDate);
 
-    todayLocation.innerHTML = date.location.name;
-    todayTemp.innerHTML = date.current.temp_c;
-    todayConditionImg.setAttribute("src", "http:" + date.current.condition.icon)
-    humidity.innerHTML = date.current.humidity + "%"
-    wind.innerHTML = date.current.wind_kph + "kp/h"
-    windDirection.innerHTML = date.current.wind_degree
-    todayConditionText.innerHTML = date.current.condition.text
-    todayNumber.innerHTML = todayDate.getDate()
-    todayName.innerHTML = todayDate.toLocaleDateString("en-us", {
+    todayLocation.textContent = date.location.name;
+    todayTemp.textContent = date.current.temp_c;
+    todayConditionImg.setAttribute("src", "https:" + date.current.condition.icon)
+    humidity.textContent = date.current.humidity + "%"
+    wind.textContent = date.current.wind_kph + " km/h"
+    windDirection.textContent = date.current.wind_degree
+    todayConditionText.textContent = date.current.condition.text
+    todayNumber.textContent = todayDate.getDate()
+    todayName.textContent = todayDate.toLocaleDateString("en-us", {
         weekday: "long"
     })
-    todayMonth.innerHTML = todayDate.toLocaleDateString("en-us", {
+    todayMonth.textContent = todayDate.toLocaleDateString("en-us", {
         month: "long"
     })
-
 }
 function disPlayNextDate(date) {
     var forecast = date.forecast.forecastday;
 
-    console.log(forecast);
     for (var i = 0; i < 2; i++) {
         var nextDate = new Date(forecast[i + 1].date);
-        nextMaxTemp[i].innerHTML = forecast[i + 1].day.maxtemp_c
-        nextMinTemp[i].innerHTML = forecast[i + 1].day.mintemp_c
-        nextConditionImg[i].setAttribute("src", "http:" + forecast[i + 1].day.condition.icon)
-        nextConditionText[i].innerHTML = forecast[i + 1].day.condition.text
-        // var nextDayName = nextDate.getDate() + i
-        // console.log(nextDayName);
 
-        nextDay[i].innerHTML = nextDate.toLocaleDateString("en-us", {
-            weekday: "long"
-        })
-
-
+        nextMaxTemp[i].textContent = forecast[i + 1].day.maxtemp_c;
+        nextMinTemp[i].textContent = forecast[i + 1].day.mintemp_c;
+        nextConditionImg[i].setAttribute("src", "https:" + forecast[i + 1].day.condition.icon);
+        nextConditionText[i].textContent = forecast[i + 1].day.condition.text;
+        nextDay[i].textContent = nextDate.toLocaleDateString("en-us", { weekday: "long" });
     }
-
 }
-
-
